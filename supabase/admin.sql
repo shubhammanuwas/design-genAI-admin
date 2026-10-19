@@ -46,6 +46,11 @@ on public.generations for update to authenticated
 using ((select public.is_current_user_superadmin()))
 with check ((select public.is_current_user_superadmin()));
 
+drop policy if exists "Superadmins can create generations" on public.generations;
+create policy "Superadmins can create generations"
+on public.generations for insert to authenticated
+with check ((select public.is_current_user_superadmin()));
+
 drop policy if exists "Superadmins can delete generations" on public.generations;
 create policy "Superadmins can delete generations"
 on public.generations for delete to authenticated
