@@ -47,10 +47,21 @@ set that profile's `is_superadmin` back to `false` in the SQL Editor.
 ## 3. Configure Google OAuth and the app
 
 Enable Google under Supabase Authentication > Providers. In Authentication >
-URL Configuration, set the Site URL to the admin deployment and add both
-`http://localhost:3000/auth/callback` and the admin deployment's
-`/auth/callback` URL to the allowed Redirect URLs. The Google OAuth client must
-allow the Supabase callback URL shown by the provider setup.
+URL Configuration, add the admin app's callback URLs to the allowed Redirect
+URLs:
+
+- `http://localhost:3100/auth/callback` when the media app is using port 3000.
+- The admin app's Vercel URL followed by `/auth/callback`.
+
+Only add `http://localhost:3000/auth/callback` if the admin app itself is
+running at port 3000. Keep the Site URL set to the existing media app's
+canonical URL if that app already uses this Supabase project. The admin sign-in
+button requests a callback on the current app's origin; if that exact callback
+is not in Supabase's allowlist, Supabase may fall back to the Site URL and send
+you back to the media app instead of this admin dashboard.
+
+The Google OAuth client must allow the Supabase callback URL shown by the
+provider setup. This is a separate URL from the app's `/auth/callback`.
 
 Copy `.env.example` to `.env.local` for local development. Set the public
 Supabase URL and publishable key locally and in the Vercel project's
@@ -59,8 +70,13 @@ Environment Variables. Never use a service-role key or put secrets in
 
 ```bash
 npm install
-npm run dev
+npm run dev -- --port 3100
 ```
+
+Open `http://localhost:3100/login` to sign into the admin app. The media and
+admin apps are separate deployments and each has its own login callback and
+home page; signing into the media app takes you to caption creation, while
+signing into this app takes an authorized superadmin to the admin dashboard.
 
 ## 4. Create the GitHub repository and Vercel project
 
