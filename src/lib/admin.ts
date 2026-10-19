@@ -2,12 +2,23 @@ import "server-only";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase";
 
+const expiredSessionCodes = new Set([
+  "refresh_token_not_found",
+  "refresh_token_already_used",
+  "session_expired",
+  "session_not_found",
+]);
+
 export async function getAdminSession() {
   const supabase = await createSupabaseServerClient();
   if (!supabase) return { supabase: null, user: null, isAdmin: false };
 
   const { data: { user }, error: userError } = await supabase.auth.getUser();
-  if (userError && userError.name !== "AuthSessionMissingError") {
+  const isMissingOrExpiredSession =
+    userError?.name === "AuthSessionMissingError" ||
+    (userError?.code !== undefined && expiredSessionCodes.has(userError.code));
+
+  if (userError && !isMissingOrExpiredSession) {
     throw new Error(`Could not verify the Google session: ${userError.message}`);
   }
   if (!user) return { supabase, user: null, isAdmin: false };
