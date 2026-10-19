@@ -7,7 +7,9 @@ export async function getAdminSession() {
   if (!supabase) return { supabase: null, user: null, isAdmin: false };
 
   const { data: { user }, error: userError } = await supabase.auth.getUser();
-  if (userError) throw new Error(`Could not verify the Google session: ${userError.message}`);
+  if (userError && userError.name !== "AuthSessionMissingError") {
+    throw new Error(`Could not verify the Google session: ${userError.message}`);
+  }
   if (!user) return { supabase, user: null, isAdmin: false };
 
   if (user.app_metadata.provider !== "google") {
