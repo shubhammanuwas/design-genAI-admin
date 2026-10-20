@@ -16,6 +16,25 @@ export async function signOut() {
   redirect("/login");
 }
 
+export async function setProfileSuperadmin(formData: FormData) {
+  const { supabase } = await requireAdmin();
+  const profileId = String(formData.get("profile_id") ?? "");
+  const roleValue = formData.get("is_superadmin");
+
+  if (!/^[0-9a-f-]{36}$/i.test(profileId)) throw new Error("Choose a valid profile.");
+  if (roleValue !== "true" && roleValue !== "false") throw new Error("Choose a valid role change.");
+  const shouldBeSuperadmin = roleValue === "true";
+
+  const { error } = await supabase.rpc("set_profile_superadmin", {
+    target_profile_id: profileId,
+    should_be_superadmin: shouldBeSuperadmin,
+  });
+  if (error) throw new Error(`Could not change the member's role: ${error.message}`);
+
+  revalidatePath("/");
+  redirect(`/?notice=${shouldBeSuperadmin ? "promoted" : "demoted"}#members`);
+}
+
 export async function createGeneration(formData: FormData) {
   const { supabase } = await requireAdmin();
   const userId = String(formData.get("user_id") ?? "");

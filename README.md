@@ -13,6 +13,8 @@ Run [`supabase/admin.sql`](./supabase/admin.sql) in the Supabase Dashboard's
 SQL Editor after the media app's schema in `assignment-4.sql` has been applied.
 It adds the role field and admin-only policies. Do not add a Supabase
 `service_role` key to this app: it bypasses RLS and is not needed.
+If you already ran an earlier version of this script, run it again to add the
+superadmin-only role management function used by the dashboard.
 
 ## 2. Bootstrap the first superadmin
 
@@ -43,6 +45,9 @@ where id = (
 The query should update one profile. If it updates zero rows, sign in to the
 media app with that Google account first, then retry. To remove access later,
 set that profile's `is_superadmin` back to `false` in the SQL Editor.
+After the role management function is installed, a superadmin can promote or
+demote other profiles from the dashboard's Community profiles section. The
+dashboard prevents removing your own access or demoting the last superadmin.
 
 ## 3. Configure Google OAuth and the app
 

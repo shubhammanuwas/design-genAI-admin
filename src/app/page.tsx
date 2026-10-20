@@ -2,7 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { requireAdminPage } from "@/lib/admin";
 import type { Generation, Profile, UserRecord, Vote, VoteCount } from "@/lib/database";
-import { signOut, createGeneration, deleteGeneration, updateGeneration } from "./admin/actions";
+import { signOut, createGeneration, deleteGeneration, setProfileSuperadmin, updateGeneration } from "./admin/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -72,8 +72,23 @@ export default async function AdminPage({
   const totalVotes = totalUpvotes + totalDownvotes;
   const positiveRate = totalVotes ? Math.round((totalUpvotes / totalVotes) * 100) : 0;
   const topCaption = [...counts].sort((a, b) => (b.upvotes - b.downvotes) - (a.upvotes - a.downvotes))[0];
-  const topGeneration = topCaption ? generationById.get(topCaption.generation_id) : undefined;
+  let topGeneration = topCaption ? generationById.get(topCaption.generation_id) : undefined;
+  if (topCaption && !topGeneration) {
+    const { data, error } = await supabase
+      .from("generations")
+      .select("id, user_id, photo_path, prompt, caption, created_at")
+      .eq("id", topCaption.generation_id)
+      .maybeSingle();
+    if (error) throw new Error(`Could not load the top-rated media: ${error.message}`);
+    topGeneration = data ?? undefined;
+  }
   const notice = (await searchParams).notice;
+  const noticeMessage = notice === "created" ? "Media created successfully."
+    : notice === "updated" ? "Media updated successfully."
+      : notice === "deleted" ? "Media deleted successfully."
+        : notice === "promoted" ? "Member promoted to superadmin."
+          : notice === "demoted" ? "Superadmin changed to member."
+            : null;
   const today = new Intl.DateTimeFormat("en", { weekday: "long", month: "long", day: "numeric" }).format(new Date()).toUpperCase();
 
   return (
@@ -97,17 +112,23 @@ export default async function AdminPage({
         <div className="sidebar-user">
           <div className="user-avatar">{initials(profileById.get(user!.id))}</div>
           <div className="sidebar-user-copy"><strong>{displayName(profileById.get(user!.id))}</strong><small>Superadmin</small></div>
-          <form action={signOut}><button className="sign-out" aria-label="Sign out" title="Sign out">↗</button></form>
         </div>
       </aside>
 
       <section className="main-area">
         <header className="topbar">
           <div><span className="breadcrumb">Workspace</span><span className="crumb-slash">/</span><strong>Overview</strong></div>
-          <div className="topbar-right"><span className="today">LIVE DATABASE</span><span className="live-dot" /><span className="topbar-avatar">{initials(profileById.get(user!.id))}</span></div>
+          <div className="topbar-right">
+            <span className="today">LIVE DATABASE</span>
+            <span className="live-dot" />
+            <span className="topbar-avatar">{initials(profileById.get(user!.id))}</span>
+            <form action={signOut}>
+              <button className="topbar-sign-out" type="submit">Sign out</button>
+            </form>
+          </div>
         </header>
         <div className="content">
-          {notice ? <div className="success-banner" role="status">Media {notice} successfully.</div> : null}
+          {noticeMessage ? <div className="success-banner" role="status">{noticeMessage}</div> : null}
           <section id="overview" className="intro">
             <div><p className="eyebrow">{today} · STUDIO PULSE</p><h1>The little things add up.</h1><p>Every image, idea, and vote — all in one place.</p></div>
             <a className="export-button" href="#media">＋ <span>Add a generation</span></a>
@@ -141,13 +162,22 @@ export default async function AdminPage({
           </section>
 
           <section id="members" className="panel">
-            <div className="section-heading panel-heading"><div><p className="eyebrow">THE PEOPLE BEHIND THE PROMPTS</p><h2>Community profiles <span className="count-pill">{profileCountResult.count ?? 0}</span></h2></div><span className="panel-meta">LATEST MEMBERS</span></div>
+            <div className="section-heading panel-heading"><div><p className="eyebrow">THE PEOPLE BEHIND THE PROMPTS</p><h2>Community profiles <span className="count-pill">{profileCountResult.count ?? 0}</span></h2></div><span className="panel-meta">ROLE MANAGEMENT</span></div>
             {profiles.length ? <div className="profile-list">
-              {profiles.slice(0, 8).map((profile) => <article className="profile-row" key={profile.id}>
+              {profiles.map((profile) => <article className="profile-row" key={profile.id}>
                 {profile.avatar_url ? <Image className="profile-avatar" src={profile.avatar_url} alt="" width={40} height={40} unoptimized /> : <div className="profile-avatar initials">{initials(profile)}</div>}
                 <div className="profile-info"><strong>{displayName(profile)}</strong><span>{profile.id}</span></div>
                 <span className="joined-date">Joined {formatDate(profile.created_at)}</span>
                 {profile.is_superadmin ? <span className="admin-chip">SUPERADMIN</span> : <span className="member-chip">MEMBER</span>}
+                {profile.id !== user!.id ? (
+                  <form action={setProfileSuperadmin}>
+                    <input type="hidden" name="profile_id" value={profile.id} />
+                    <input type="hidden" name="is_superadmin" value={profile.is_superadmin ? "false" : "true"} />
+                    <button className="role-button" type="submit">
+                      {profile.is_superadmin ? "Make member" : "Make admin"}
+                    </button>
+                  </form>
+                ) : null}
               </article>)}
             </div> : <p className="empty-copy">No profiles found.</p>}
           </section>

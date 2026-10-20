@@ -101,6 +101,13 @@ export type Database = {
         Args: Record<never, never>;
         Returns: boolean;
       };
+      set_profile_superadmin: {
+        Args: {
+          target_profile_id: string;
+          should_be_superadmin: boolean;
+        };
+        Returns: boolean;
+      };
     };
     Enums: Record<never, never>;
     CompositeTypes: Record<never, never>;
